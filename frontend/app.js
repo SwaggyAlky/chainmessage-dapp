@@ -1,14 +1,14 @@
 const CONTRACT_ADDRESS = "0xe4c18e4c522b2cbd839610f940070fd9e831744b";
 
 const CONTRACT_ABI = [
-    "function postMessage(string _text) public",
-    "function getMessages() public view returns (tuple(address sender, string text, uint256 timestamp)[])",
-    "function getMessageCount() public view returns (uint256)"
+    "function postMessage(string _text)",
+    "function getMessages() view returns (tuple(address sender,string text,uint256 timestamp)[])",
+    "function getMessageCount() view returns (uint256)"
 ];
 
-let provider;
-let signer;
-let contract;
+let provider = null;
+let signer = null;
+let contract = null;
 
 const connectButton = document.getElementById("connectButton");
 const postButton = document.getElementById("postButton");
@@ -20,42 +20,64 @@ const messageList = document.getElementById("messageList");
 const status = document.getElementById("status");
 const characterCount = document.getElementById("characterCount");
 
-messageInput.addEventListener("input", () => {
-    characterCount.innerText = messageInput.value.length;
+
+// ----------------------------
+// Character counter
+// ----------------------------
+
+messageInput.addEventListener("input", function () {
+    characterCount.textContent = messageInput.value.length;
 });
 
-connectButton.addEventListener("click", connectWallet);
-postButton.addEventListener("click", postMessage);
-refreshButton.addEventListener("click", loadMessages);
 
+// ----------------------------
+// Connect Wallet
+// ----------------------------
 
-async function connectWallet() {
+connectButton.addEventListener("click", async function (event) {
+
+    event.preventDefault();
 
     if (!window.ethereum) {
-        alert(
-            "MetaMask was not detected. Please open this DApp in a MetaMask-enabled browser."
-        );
+        alert("MetaMask is not installed.");
         return;
     }
 
     try {
 
-        await window.ethereum.request({
+        status.textContent = "Connecting wallet...";
+
+        const accounts = await window.ethereum.request({
             method: "eth_requestAccounts"
         });
+
+        if (!accounts || accounts.length === 0) {
+            throw new Error("No wallet account selected.");
+        }
+
+        // Check network
+        const chainId = await window.ethereum.request({
+            method: "eth_chainId"
+        });
+
+        // Sepolia = 11155111 = 0xaa36a7
+        if (chainId !== "0xaa36a7") {
+
+            status.textContent = "Switching to Sepolia...";
+
+            await window.ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [
+                    {
+                        chainId: "0xaa36a7"
+                    }
+                ]
+            });
+        }
 
         provider = new ethers.BrowserProvider(window.ethereum);
 
         signer = await provider.getSigner();
-
-        const address = await signer.getAddress();
-
-        walletAddress.innerText =
-            address.slice(0, 6) +
-            "..." +
-            address.slice(-4);
-
-        connectButton.innerText = "Wallet Connected";
 
         contract = new ethers.Contract(
             CONTRACT_ADDRESS,
@@ -63,29 +85,50 @@ async function connectWallet() {
             signer
         );
 
+        const address = await signer.getAddress();
+
+        walletAddress.textContent =
+            address.substring(0, 6) +
+            "..." +
+            address.substring(address.length - 4);
+
+        connectButton.textContent = "Wallet Connected ✓";
+
+        status.textContent = "Connected to Sepolia.";
+
+        console.log("Wallet connected:", address);
+        console.log("Contract:", CONTRACT_ADDRESS);
+
         await loadMessages();
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Wallet connection error:", error);
 
-        status.innerText =
-            "Wallet connection failed.";
+        status.textContent =
+            "Wallet connection failed: " +
+            (error.shortMessage || error.message);
 
     }
-}
+});
 
 
-async function postMessage() {
+// ----------------------------
+// Post Message
+// ----------------------------
 
-    const text = messageInput.value.trim();
+postButton.addEventListener("click", async function (event) {
 
-    if (!contract) {
+    event.preventDefault();
+
+    if (!contract || !signer) {
         alert("Please connect your wallet first.");
         return;
     }
 
-    if (text.length === 0) {
+    const text = messageInput.value.trim();
+
+    if (!text) {
         alert("Please enter a message.");
         return;
     }
@@ -97,35 +140,58 @@ async function postMessage() {
 
     try {
 
-        status.innerText =
-            "Waiting for wallet confirmation...";
+        status.textContent =
+            "Please confirm the transaction in MetaMask...";
 
-        const transaction =
-            await contract.postMessage(text);
+        const tx = await contract.postMessage(text);
 
-        status.innerText =
+        status.textContent =
             "Transaction submitted. Waiting for confirmation...";
 
-        await transaction.wait();
+        console.log("Transaction:", tx.hash);
 
-        status.innerText =
-            "Message successfully stored on blockchain!";
+        await tx.wait();
+
+        status.textContent =
+            "✓ Message successfully stored on blockchain!";
 
         messageInput.value = "";
-        characterCount.innerText = "0";
+        characterCount.textContent = "0";
 
         await loadMessages();
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Transaction error:", error);
 
-        status.innerText =
-            "Transaction failed or was cancelled.";
+        status.textContent =
+            "Transaction failed: " +
+            (error.shortMessage || error.message);
 
     }
-}
+});
 
+
+// ----------------------------
+// Refresh
+// ----------------------------
+
+refreshButton.addEventListener("click", async function (event) {
+
+    event.preventDefault();
+
+    if (!contract) {
+        alert("Please connect your wallet first.");
+        return;
+    }
+
+    await loadMessages();
+});
+
+
+// ----------------------------
+// Load Messages
+// ----------------------------
 
 async function loadMessages() {
 
@@ -135,80 +201,94 @@ async function loadMessages() {
 
     try {
 
-        const messages =
-            await contract.getMessages();
+        const messages = await contract.getMessages();
 
         messageList.innerHTML = "";
 
         if (messages.length === 0) {
 
-            messageList.innerHTML =
-                '<p class="empty-message">No messages yet.</p>';
+            const empty = document.createElement("p");
+
+            empty.className = "empty-message";
+            empty.textContent = "No messages yet.";
+
+            messageList.appendChild(empty);
 
             return;
         }
 
-        [...messages]
-            .reverse()
-            .forEach((message) => {
+        const reversedMessages = [...messages].reverse();
 
-                const address = message.sender;
+        reversedMessages.forEach(function (message) {
 
-                const shortAddress =
-                    address.slice(0, 6) +
-                    "..." +
-                    address.slice(-4);
+            const div = document.createElement("div");
+            div.className = "message";
 
-                const date =
-                    new Date(
-                        Number(message.timestamp) * 1000
-                    );
+            const address = message.sender;
 
-                const div =
-                    document.createElement("div");
+            const shortAddress =
+                address.substring(0, 6) +
+                "..." +
+                address.substring(address.length - 4);
 
-                div.className = "message";
+            const addressEl = document.createElement("div");
 
-                const addressEl =
-                    document.createElement("div");
+            addressEl.className = "message-address";
+            addressEl.textContent = shortAddress;
 
-                addressEl.className =
-                    "message-address";
 
-                addressEl.textContent =
-                    shortAddress;
+            const textEl = document.createElement("div");
 
-                const textEl =
-                    document.createElement("div");
+            textEl.className = "message-text";
+            textEl.textContent = message.text;
 
-                textEl.className =
-                    "message-text";
 
-                textEl.textContent =
-                    message.text;
+            const timeEl = document.createElement("div");
 
-                const timeEl =
-                    document.createElement("div");
+            timeEl.className = "message-time";
 
-                timeEl.className =
-                    "message-time";
+            const date = new Date(
+                Number(message.timestamp) * 1000
+            );
 
-                timeEl.textContent =
-                    date.toLocaleString();
+            timeEl.textContent = date.toLocaleString();
 
-                div.appendChild(addressEl);
-                div.appendChild(textEl);
-                div.appendChild(timeEl);
 
-                messageList.appendChild(div);
-            });
+            div.appendChild(addressEl);
+            div.appendChild(textEl);
+            div.appendChild(timeEl);
+
+            messageList.appendChild(div);
+        });
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Load messages error:", error);
 
-        messageList.innerHTML =
-            '<p class="empty-message">Unable to load messages.</p>';
+        messageList.innerHTML = "";
 
+        const errorMessage = document.createElement("p");
+
+        errorMessage.className = "empty-message";
+        errorMessage.textContent =
+            "Unable to load blockchain messages.";
+
+        messageList.appendChild(errorMessage);
     }
+}
+
+
+// ----------------------------
+// Wallet change handling
+// ----------------------------
+
+if (window.ethereum) {
+
+    window.ethereum.on("accountsChanged", function () {
+        window.location.reload();
+    });
+
+    window.ethereum.on("chainChanged", function () {
+        window.location.reload();
+    });
 }
