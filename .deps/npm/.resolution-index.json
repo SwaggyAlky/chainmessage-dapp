@@ -1,0 +1,10 @@
+{
+  "contracts/MessageBoard.sol": {
+    "__sources__": {
+      "contracts/MessageBoard.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.20;\r\n\r\ncontract MessageBoard {\r\n\r\n    struct Message {\r\n        address sender;\r\n        string text;\r\n        uint256 timestamp;\r\n    }\r\n\r\n    Message[] private messages;\r\n\r\n    event MessagePosted(\r\n        address indexed sender,\r\n        string text,\r\n        uint256 timestamp\r\n    );\r\n\r\n    function postMessage(string memory _text) public {\r\n        require(bytes(_text).length > 0, \"Message cannot be empty\");\r\n        require(bytes(_text).length <= 200, \"Message too long\");\r\n\r\n        messages.push(\r\n            Message({\r\n                sender: msg.sender,\r\n                text: _text,\r\n                timestamp: block.timestamp\r\n            })\r\n        );\r\n\r\n        emit MessagePosted(msg.sender, _text, block.timestamp);\r\n    }\r\n\r\n    function getMessages() public view returns (Message[] memory) {\r\n        return messages;\r\n    }\r\n\r\n    function getMessageCount() public view returns (uint256) {\r\n        return messages.length;\r\n    }\r\n}",
+        "file": "contracts/MessageBoard.sol"
+      }
+    }
+  }
+}

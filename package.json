@@ -1,0 +1,11 @@
+{
+  "name": "chainmessage-dapp",
+  "version": "1.0.0",
+  "description": "A decentralized message board DApp",
+  "scripts": {
+    "start": "serve frontend -s -l $PORT"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
+}

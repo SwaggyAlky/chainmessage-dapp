@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ChainMessage</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="logo">⛓️</div>
+
+    <h1>ChainMessage</h1>
+
+    <p class="subtitle">
+        Decentralized Message Board
+    </p>
+
+    <div class="network">
+        Ethereum Sepolia
+    </div>
+
+    <button id="connectButton" class="wallet-button">
+        Connect Wallet
+    </button>
+
+    <p id="walletAddress">
+        Wallet not connected
+    </p>
+
+    <div class="card">
+
+        <h2>Post a Message</h2>
+
+        <textarea
+            id="messageInput"
+            maxlength="200"
+            placeholder="Write something on the blockchain..."
+        ></textarea>
+
+        <div class="counter">
+            <span id="characterCount">0</span>/200
+        </div>
+
+        <button id="postButton">
+            Post on Blockchain
+        </button>
+
+        <p id="status"></p>
+
+    </div>
+
+    <div class="card">
+
+        <div class="message-header">
+            <h2>Recent Messages</h2>
+
+            <button
+                id="refreshButton"
+                class="refresh-button"
+            >
+                Refresh
+            </button>
+        </div>
+
+        <div id="messageList">
+            <p class="empty-message">
+                Connect your wallet to view messages.
+            </p>
+        </div>
+
+    </div>
+
+    <footer>
+        Powered by Ethereum Smart Contracts
+    </footer>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
